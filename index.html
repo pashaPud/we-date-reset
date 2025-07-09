@@ -50,35 +50,55 @@
     <div class="message" id="message"></div>
   </form>
 
-  <script type="module">
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+<script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-    const supabaseUrl = 'https://tfewdarpiwdelivlifuu.supabase.co'
-    const supabase = createClient(supabaseUrl)
+  const supabase = createClient('https://tfewdarpiwdelivlifuu.supabase.co')
 
-    const form = document.getElementById('resetForm')
-    const message = document.getElementById('message')
+  const url = new URL(window.location.href)
+  const token = url.searchParams.get("access_token")
+  const type = url.searchParams.get("type")
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault()
+  const form = document.getElementById('resetForm')
+  const message = document.getElementById('message')
 
-      const password = document.getElementById('password').value
-      const confirm = document.getElementById('confirm').value
-
-      if (password !== confirm) {
-        message.textContent = 'Пароли не совпадают'
-        return
-      }
-
-      const { error } = await supabase.auth.updateUser({ password })
-
-      if (error) {
-        message.textContent = 'Ошибка: ' + error.message
-      } else {
-        message.textContent = 'Пароль успешно изменён! Можете закрыть окно.'
-        form.reset()
-      }
+  if (type === "recovery" && token) {
+    console.log("🔐 Устанавливаем сессию по токену:", token.slice(0, 8), "...")
+    const { error } = await supabase.auth.setSession({
+      access_token: token,
+      refresh_token: ''
     })
-  </script>
+
+    if (error) {
+      message.textContent = "Ошибка авторизации. Попробуйте снова."
+      form.style.display = "none"
+    }
+  } else {
+    message.textContent = "Недействительная ссылка для восстановления."
+    form.style.display = "none"
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault()
+
+    const password = document.getElementById('password').value
+    const confirm = document.getElementById('confirm').value
+
+    if (password !== confirm) {
+      message.textContent = 'Пароли не совпадают'
+      return
+    }
+
+    const { error } = await supabase.auth.updateUser({ password })
+
+    if (error) {
+      message.textContent = 'Ошибка: ' + error.message
+    } else {
+      message.textContent = '✅ Пароль успешно изменён!'
+      form.reset()
+    }
+  })
+</script>
+
 </body>
 </html>
