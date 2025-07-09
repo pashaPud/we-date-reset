@@ -63,12 +63,12 @@
 
     // Чтение токенов из URL
     const url = new URL(window.location.href)
-    const token = url.searchParams.get("access_token")
-    const type = url.searchParams.get("type")
+const token = url.searchParams.get("token")
+const type  = url.searchParams.get("type")
 
-    console.log("🔍 URL params → access_token:", token?.slice(0, 8), "... type:", type)
+    console.log("🔍 URL params → token:", token?.slice(0, 8), "... type:", type)
 
-    // Авторизация по access_token
+    // Авторизация по token
     if (type === "recovery" && token) {
       try {
         const { error } = await supabase.auth.setSession({
