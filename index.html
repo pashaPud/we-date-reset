@@ -62,19 +62,25 @@
     const message = document.getElementById('message')
 
     // Чтение токенов из URL
-    const url = new URL(window.location.href)
-const token = url.searchParams.get("token")
-const type  = url.searchParams.get("type")
+// Вместо чтения из searchParams:
+const hash = window.location.hash.substring(1)                      // отбрасываем ‘#’
+const params = new URLSearchParams(hash)
+const access_token  = params.get("access_token")
+const refresh_token = params.get("refresh_token")
+const type          = params.get("type")
+
+console.log("🔍 Hash params → access_token:", access_token?.slice(0,8), "... type:", type)
+
 
     console.log("🔍 URL params → token:", token?.slice(0, 8), "... type:", type)
 
     // Авторизация по token
-    if (type === "recovery" && token) {
+    if (type === "recovery" && access_token && refresh_token) {
       try {
         const { error } = await supabase.auth.setSession({
-          access_token: token,
-          refresh_token: ""
-        })
+    access_token,
+    refresh_token
+  })
 
         if (error) {
           console.error("❌ Ошибка setSession:", error.message)
@@ -89,9 +95,9 @@ const type  = url.searchParams.get("type")
         form.style.display = "none"
       }
     } else {
-      console.warn("⚠️ Отсутствует access_token или type=recovery")
       message.textContent = "Неверная или просроченная ссылка сброса."
       form.style.display = "none"
+      message.textContent = "Неверная или просроченная ссылка сброса."
     }
 
     // Обработка формы
