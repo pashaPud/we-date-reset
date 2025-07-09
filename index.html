@@ -23,9 +23,30 @@
       width: 100%;
       gap: 1rem;
     }
+    .input-container {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
     input {
       padding: 0.75rem;
       font-size: 1rem;
+      width: 100%;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    input.error {
+      border-color: #e74c3c;
+    }
+    .toggle-password {
+      position: absolute;
+      right: 10px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: #666;
+      padding: 0;
     }
     button {
       background: black;
@@ -34,19 +55,63 @@
       border: none;
       cursor: pointer;
       font-size: 1rem;
+      border-radius: 4px;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
     }
     .message {
       margin-top: 1rem;
       font-weight: bold;
+    }
+    .message.success {
+      color: #27ae60;
+    }
+    .message.error {
+      color: #e74c3c;
+    }
+    .requirements {
+      font-size: 0.85rem;
+      color: #666;
+      margin-bottom: 0.5rem;
+    }
+    .requirements ul {
+      margin: 0.5rem 0;
+      padding-left: 1.2rem;
+    }
+    .requirements li {
+      margin: 0.2rem 0;
+    }
+    .requirement-met {
+      color: #27ae60;
+    }
+    .requirement-not-met {
+      color: #e74c3c;
     }
   </style>
 </head>
 <body>
   <h1>Сброс пароля</h1>
   <form id="resetForm">
-    <input type="password" id="password" placeholder="Новый пароль" required />
-    <input type="password" id="confirm" placeholder="Повторите пароль" required />
-    <button type="submit">Установить новый пароль</button>
+    <div class="requirements">
+      <strong>Требования к паролю:</strong>
+      <ul>
+        <li id="lengthReq" class="requirement-not-met">Минимум 6 символов</li>
+      </ul>
+    </div>
+    
+    <div class="input-container">
+      <input type="password" id="password" placeholder="Новый пароль" required />
+      <button type="button" class="toggle-password" onclick="togglePassword('password')">👁️</button>
+    </div>
+    
+    <div class="input-container">
+      <input type="password" id="confirm" placeholder="Повторите пароль" required />
+      <button type="button" class="toggle-password" onclick="togglePassword('confirm')">👁️</button>
+    </div>
+    
+    <button type="submit" id="submitBtn">Установить новый пароль</button>
     <div class="message" id="message"></div>
   </form>
 
@@ -58,15 +123,69 @@ const supabase = createClient(
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRmZXdkYXJwaXdkZWxpdmxpZnV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTg3ODMyODIsImV4cCI6MjAxNDM1OTI4Mn0.MR59uebNSQW5zUEskgK47v0-FgOp0Kr6Id8GyVmdmQs'
 )
 
-
-  const form    = document.getElementById('resetForm')
+  const form = document.getElementById('resetForm')
   const message = document.getElementById('message')
+  const passwordInput = document.getElementById('password')
+  const confirmInput = document.getElementById('confirm')
+  const submitBtn = document.getElementById('submitBtn')
+  const lengthReq = document.getElementById('lengthReq')
 
-  const hash   = window.location.hash.substring(1)
+  // Функция для показа/скрытия пароля
+  window.togglePassword = function(inputId) {
+    const input = document.getElementById(inputId)
+    const type = input.getAttribute('type') === 'password' ? 'text' : 'password'
+    input.setAttribute('type', type)
+    
+    const button = input.nextElementSibling
+    button.textContent = type === 'password' ? '👁️' : '🙈'
+  }
+
+  // Функция для показа сообщений
+  function showMessage(text, type = 'error') {
+    message.textContent = text
+    message.className = `message ${type}`
+  }
+
+  // Функция для проверки требований к паролю
+  function checkPasswordRequirements(password) {
+    const isLengthValid = password.length >= 6
+    
+    // Обновляем визуальную индикацию требований
+    lengthReq.className = isLengthValid ? 'requirement-met' : 'requirement-not-met'
+    
+    return isLengthValid
+  }
+
+  // Валидация пароля в реальном времени
+  passwordInput.addEventListener('input', function() {
+    const password = this.value
+    const isValid = checkPasswordRequirements(password)
+    
+    // Удаляем стиль ошибки при вводе
+    this.classList.remove('error')
+    
+    // Очищаем сообщение об ошибке если пользователь исправляет
+    if (message.classList.contains('error')) {
+      message.textContent = ''
+      message.className = 'message'
+    }
+  })
+
+  // Валидация подтверждения пароля
+  confirmInput.addEventListener('input', function() {
+    this.classList.remove('error')
+    
+    if (message.classList.contains('error')) {
+      message.textContent = ''
+      message.className = 'message'
+    }
+  })
+
+  const hash = window.location.hash.substring(1)
   const params = new URLSearchParams(hash)
-  const accessToken  = params.get("access_token")
+  const accessToken = params.get("access_token")
   const refreshToken = params.get("refresh_token")
-  const type         = params.get("type")
+  const type = params.get("type")
 
   console.log(
     "🔍 Hash params → access_token:",
@@ -84,47 +203,82 @@ const supabase = createClient(
 
       if (error) {
         console.error("❌ Ошибка setSession:", error.message)
-        message.textContent = "Ошибка авторизации: " + error.message
+        showMessage("Ошибка авторизации: " + error.message, 'error')
         form.style.display = "none"
       } else {
         console.log("✅ Сессия успешно установлена")
       }
     } catch (err) {
       console.error("❌ Exception setSession:", err)
-      message.textContent = "Ошибка авторизации. Попробуйте заново."
+      showMessage("Ошибка авторизации. Попробуйте заново.", 'error')
       form.style.display = "none"
     }
   } else {
     console.warn("⚠️ Неверные параметры для восстановления")
-    message.textContent = "Неверная или просроченная ссылка сброса."
+    showMessage("Неверная или просроченная ссылка сброса.", 'error')
     form.style.display = "none"
   }
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault()
 
-    const password = document.getElementById('password').value
-    const confirm  = document.getElementById('confirm').value
+    const password = passwordInput.value
+    const confirm = confirmInput.value
 
-    if (password !== confirm) {
-      message.textContent = 'Пароли не совпадают'
+    // Очищаем предыдущие стили ошибок
+    passwordInput.classList.remove('error')
+    confirmInput.classList.remove('error')
+
+    // Проверяем длину пароля
+    if (!checkPasswordRequirements(password)) {
+      passwordInput.classList.add('error')
+      showMessage('Пароль должен содержать минимум 6 символов', 'error')
       return
     }
+
+    // Проверяем совпадение паролей
+    if (password !== confirm) {
+      confirmInput.classList.add('error')
+      showMessage('Пароли не совпадают', 'error')
+      return
+    }
+
+    // Блокируем кнопку на время запроса
+    submitBtn.disabled = true
+    submitBtn.textContent = 'Обновление...'
 
     try {
       const { error } = await supabase.auth.updateUser({ password })
 
       if (error) {
         console.error("❌ Ошибка updateUser:", error.message)
-        message.textContent = "Ошибка: " + error.message
+        
+        // Более детальная обработка ошибок
+        let errorMessage = "Ошибка при обновлении пароля: "
+        if (error.message.includes('session_not_found')) {
+          errorMessage += "Сессия истекла. Попробуйте запросить сброс пароля заново."
+        } else if (error.message.includes('invalid_credentials')) {
+          errorMessage += "Неверные данные авторизации."
+        } else if (error.message.includes('too_many_requests')) {
+          errorMessage += "Слишком много попыток. Попробуйте позже."
+        } else {
+          errorMessage += error.message
+        }
+        
+        showMessage(errorMessage, 'error')
       } else {
         console.log("✅ Пароль успешно изменён")
-        message.textContent = "Пароль успешно изменён! Вы можете закрыть окно."
+        showMessage("Пароль успешно изменён! Вы можете закрыть это окно и войти в приложение с новым паролем.", 'success')
         form.reset()
+        checkPasswordRequirements('') // Сбрасываем индикаторы требований
       }
     } catch (err) {
       console.error("❌ Исключение updateUser:", err)
-      message.textContent = "Что-то пошло не так. Попробуйте позже."
+      showMessage("Произошла непредвиденная ошибка. Проверьте подключение к интернету и попробуйте позже.", 'error')
+    } finally {
+      // Разблокируем кнопку
+      submitBtn.disabled = false
+      submitBtn.textContent = 'Установить новый пароль'
     }
   })
 </script>
